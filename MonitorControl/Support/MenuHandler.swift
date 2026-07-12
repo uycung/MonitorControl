@@ -4,6 +4,15 @@ import AppKit
 import os.log
 
 class MenuHandler: NSMenu, NSMenuDelegate {
+  class PresetMenuReference: NSObject {
+    let prefsId: String
+    let presetId: UUID?
+    init(prefsId: String, presetId: UUID?) {
+      self.prefsId = prefsId
+      self.presetId = presetId
+    }
+  }
+
   var combinedSliderHandler: [Command: SliderHandler] = [:]
 
   var lastMenuRelevantDisplayId: CGDirectDisplayID = 0
@@ -21,6 +30,7 @@ class MenuHandler: NSMenu, NSMenuDelegate {
 
   func menuWillOpen(_: NSMenu) {
     self.updateMenuRelevantDisplay()
+    self.refreshPresetCheckmarks(in: self)
     app.keyboardShortcuts.disengage()
   }
 
@@ -92,7 +102,7 @@ class MenuHandler: NSMenu, NSMenuDelegate {
       display.sliderHandler[command] = combinedHandler
       return combinedHandler
     } else {
-      let sliderHandler = SliderHandler(display: display, command: command, title: title)
+      let sliderHandler = command == .selectColorPreset ? ColorWarmthSliderHandler(display: display, command: command, title: title) : SliderHandler(display: display, command: command, title: title)
       if prefs.integer(forKey: PrefKey.multiSliders.rawValue) == MultiSliders.combine.rawValue {
         self.combinedSliderHandler[command] = sliderHandler
       }
@@ -167,12 +177,166 @@ class MenuHandler: NSMenu, NSMenuDelegate {
     if let sliderHandler = self.combinedSliderHandler[.audioSpeakerVolume] {
       self.addSliderItem(monitorSubMenu: self, sliderHandler: sliderHandler)
     }
+    if let sliderHandler = self.combinedSliderHandler[.selectColorPreset] {
+      self.addSliderItem(monitorSubMenu: self, sliderHandler: sliderHandler)
+    }
     if let sliderHandler = self.combinedSliderHandler[.contrast] {
       self.addSliderItem(monitorSubMenu: self, sliderHandler: sliderHandler)
     }
     if let sliderHandler = self.combinedSliderHandler[.brightness] {
       self.addSliderItem(monitorSubMenu: self, sliderHandler: sliderHandler)
     }
+    for otherDisplay in DisplayManager.shared.getOtherDisplays() where !otherDisplay.isSw() && !otherDisplay.isDummy {
+      self.insertPresetMenuItems(for: otherDisplay, into: self, at: self.items.count, showDisplayName: true)
+    }
+  }
+
+  func buildPresetMenuItems(for display: OtherDisplay, showDisplayName: Bool = false) -> [NSMenuItem] {
+    display.seedBuiltinPresetsIfNeeded()
+    display.migrateReadingModeBrightnessIfNeeded()
+    display.migrateReadingModeContrastIfNeeded()
+    let presets = display.loadPresets()
+    var items: [NSMenuItem] = []
+    var title = NSLocalizedString("Presets", comment: "Shown in menu")
+    if showDisplayName {
+      let friendlyName = display.readPrefAsString(key: .friendlyName) != "" ? display.readPrefAsString(key: .friendlyName) : display.name
+      title += " (" + friendlyName + ")"
+    }
+    let headerItem = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+    headerItem.isEnabled = false
+    items.append(headerItem)
+    for preset in presets {
+      let item = NSMenuItem(title: preset.name, action: #selector(self.applyPresetClicked(_:)), keyEquivalent: "")
+      item.target = self
+      item.representedObject = PresetMenuReference(prefsId: display.prefsId, presetId: preset.id)
+      item.state = display.isPresetActive(preset) ? .on : .off
+      items.append(item)
+    }
+    let saveItem = NSMenuItem(title: NSLocalizedString("Save Current as…", comment: "Shown in menu"), action: #selector(self.saveCurrentAsPresetClicked(_:)), keyEquivalent: "")
+    saveItem.target = self
+    saveItem.representedObject = PresetMenuReference(prefsId: display.prefsId, presetId: nil)
+    items.append(saveItem)
+    if !presets.isEmpty {
+      let editMenu = NSMenu()
+      for preset in presets {
+        let presetEditMenu = NSMenu()
+        let entries: [(String, Selector)] = [
+          (NSLocalizedString("Update with Current Values", comment: "Shown in menu"), #selector(self.updatePresetClicked(_:))),
+          (NSLocalizedString("Rename…", comment: "Shown in menu"), #selector(self.renamePresetClicked(_:))),
+          (NSLocalizedString("Delete", comment: "Shown in menu"), #selector(self.deletePresetClicked(_:))),
+        ]
+        for (title, action) in entries {
+          let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+          item.target = self
+          item.representedObject = PresetMenuReference(prefsId: display.prefsId, presetId: preset.id)
+          presetEditMenu.addItem(item)
+        }
+        let presetItem = NSMenuItem(title: preset.name, action: nil, keyEquivalent: "")
+        presetItem.submenu = presetEditMenu
+        editMenu.addItem(presetItem)
+      }
+      let editItem = NSMenuItem(title: NSLocalizedString("Edit Presets", comment: "Shown in menu"), action: nil, keyEquivalent: "")
+      editItem.submenu = editMenu
+      items.append(editItem)
+    }
+    return items
+  }
+
+  func insertPresetMenuItems(for display: OtherDisplay, into menu: NSMenu, at index: Int, showDisplayName: Bool = false) {
+    var insertionIndex = index
+    for item in self.buildPresetMenuItems(for: display, showDisplayName: showDisplayName) {
+      menu.insertItem(item, at: insertionIndex)
+      insertionIndex += 1
+    }
+  }
+
+  private func resolvePresetMenuReference(_ sender: NSMenuItem) -> (display: OtherDisplay, presetIndex: Int?)? {
+    guard let reference = sender.representedObject as? PresetMenuReference, let display = (DisplayManager.shared.getOtherDisplays().first { $0.prefsId == reference.prefsId }) else {
+      return nil
+    }
+    let presetIndex = display.loadPresets().firstIndex { $0.id == reference.presetId }
+    return (display, presetIndex)
+  }
+
+  private func refreshPresetCheckmarks(in menu: NSMenu) {
+    for item in menu.items {
+      if item.action == #selector(self.applyPresetClicked(_:)), let (display, presetIndex) = self.resolvePresetMenuReference(item), let index = presetIndex {
+        item.state = display.isPresetActive(display.loadPresets()[index]) ? .on : .off
+      }
+      if let submenu = item.submenu {
+        self.refreshPresetCheckmarks(in: submenu)
+      }
+    }
+  }
+
+  private func promptForPresetName(currentName: String = "") -> String? {
+    let alert = NSAlert()
+    alert.messageText = NSLocalizedString("Preset Name", comment: "Shown in the preset name dialog")
+    alert.informativeText = NSLocalizedString("Enter a name for the preset.", comment: "Shown in the preset name dialog")
+    alert.addButton(withTitle: NSLocalizedString("OK", comment: "Shown in the preset name dialog"))
+    alert.addButton(withTitle: NSLocalizedString("Cancel", comment: "Shown in the preset name dialog"))
+    let nameField = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+    nameField.stringValue = currentName
+    alert.accessoryView = nameField
+    alert.window.initialFirstResponder = nameField
+    NSApp.activate(ignoringOtherApps: true)
+    guard alert.runModal() == .alertFirstButtonReturn else {
+      return nil
+    }
+    let name = nameField.stringValue.trimmingCharacters(in: .whitespaces)
+    return name.isEmpty ? nil : name
+  }
+
+  @objc func applyPresetClicked(_ sender: NSMenuItem) {
+    guard let (display, presetIndex) = self.resolvePresetMenuReference(sender), let index = presetIndex else {
+      return
+    }
+    display.applyPreset(display.loadPresets()[index])
+    self.refreshPresetCheckmarks(in: self)
+  }
+
+  @objc func saveCurrentAsPresetClicked(_ sender: NSMenuItem) {
+    guard let (display, _) = self.resolvePresetMenuReference(sender), let name = self.promptForPresetName() else {
+      return
+    }
+    var presets = display.loadPresets()
+    presets.append(display.captureCurrentAsPreset(name: name))
+    display.savePresets(presets)
+    self.updateMenus()
+  }
+
+  @objc func updatePresetClicked(_ sender: NSMenuItem) {
+    guard let (display, presetIndex) = self.resolvePresetMenuReference(sender), let index = presetIndex else {
+      return
+    }
+    var presets = display.loadPresets()
+    var updated = display.captureCurrentAsPreset(name: presets[index].name)
+    updated.id = presets[index].id
+    presets[index] = updated
+    display.savePresets(presets)
+  }
+
+  @objc func renamePresetClicked(_ sender: NSMenuItem) {
+    guard let (display, presetIndex) = self.resolvePresetMenuReference(sender), let index = presetIndex else {
+      return
+    }
+    var presets = display.loadPresets()
+    guard let name = self.promptForPresetName(currentName: presets[index].name) else {
+      return
+    }
+    presets[index].name = name
+    display.savePresets(presets)
+    self.updateMenus()
+  }
+
+  @objc func deletePresetClicked(_ sender: NSMenuItem) {
+    guard let (display, presetIndex) = self.resolvePresetMenuReference(sender), let index = presetIndex else {
+      return
+    }
+    var presets = display.loadPresets()
+    presets.remove(at: index)
+    display.savePresets(presets)
+    self.updateMenus()
   }
 
   func updateDisplayMenu(display: Display, asSubMenu: Bool, numOfDisplays: Int) {
@@ -184,6 +348,16 @@ class MenuHandler: NSMenu, NSMenuDelegate {
       let title = NSLocalizedString("Volume", comment: "Shown in menu")
       addedSliderHandlers.append(self.setupMenuSliderHandler(command: .audioSpeakerVolume, display: display, title: title))
     }
+    display.sliderHandler[.selectColorPreset] = nil
+    let colorWarmthHardwareDDC = (display as? OtherDisplay).map { !$0.isSw() } ?? false
+    let colorWarmthDDCAvailable = !display.readPrefAsBool(key: .unavailableDDC, for: .selectColorPreset)
+    let showColorWarmth = prefs.bool(forKey: PrefKey.showColorWarmth.rawValue)
+    if colorWarmthHardwareDDC, colorWarmthDDCAvailable, showColorWarmth {
+      let title = NSLocalizedString("Color Warmth", comment: "Shown in menu")
+      addedSliderHandlers.append(self.setupMenuSliderHandler(command: .selectColorPreset, display: display, title: title))
+    } else {
+      os_log("Skipping Color Warmth slider: hardwareDDC=%{public}@, selectColorPresetAvailable=%{public}@, showColorWarmth=%{public}@", type: .info, String(colorWarmthHardwareDDC), String(colorWarmthDDCAvailable), String(showColorWarmth))
+    }
     display.sliderHandler[.contrast] = nil
     if let otherDisplay = display as? OtherDisplay, !otherDisplay.isSw(), !display.readPrefAsBool(key: .unavailableDDC, for: .contrast), prefs.bool(forKey: PrefKey.showContrast.rawValue) {
       let title = NSLocalizedString("Contrast", comment: "Shown in menu")
@@ -193,6 +367,9 @@ class MenuHandler: NSMenu, NSMenuDelegate {
     if !display.readPrefAsBool(key: .unavailableDDC, for: .brightness), !prefs.bool(forKey: PrefKey.hideBrightness.rawValue) {
       let title = NSLocalizedString("Brightness", comment: "Shown in menu")
       addedSliderHandlers.append(self.setupMenuSliderHandler(command: .brightness, display: display, title: title))
+    }
+    if let otherDisplay = display as? OtherDisplay, !otherDisplay.isSw(), prefs.integer(forKey: PrefKey.multiSliders.rawValue) != MultiSliders.combine.rawValue {
+      self.insertPresetMenuItems(for: otherDisplay, into: monitorSubMenu, at: 0)
     }
     if prefs.integer(forKey: PrefKey.multiSliders.rawValue) != MultiSliders.combine.rawValue {
       self.addDisplayMenuBlock(addedSliderHandlers: addedSliderHandlers, blockName: display.readPrefAsString(key: .friendlyName) != "" ? display.readPrefAsString(key: .friendlyName) : display.name, monitorSubMenu: monitorSubMenu, numOfDisplays: numOfDisplays, asSubMenu: asSubMenu)

@@ -139,6 +139,8 @@ class SliderHandler {
   }
 
   class MCSlider: NSSlider {
+    var trackingEnded: (() -> Void)?
+
     required init?(coder: NSCoder) {
       super.init(coder: coder)
     }
@@ -146,6 +148,11 @@ class SliderHandler {
     override init(frame frameRect: NSRect) {
       super.init(frame: frameRect)
       self.cell = MCSliderCell()
+    }
+
+    override func mouseUp(with event: NSEvent) {
+      super.mouseUp(with: event)
+      self.trackingEnded?()
     }
 
     func setNumOfCustomTickmarks(_ numOfCustomTickmarks: Int) {
@@ -180,7 +187,7 @@ class SliderHandler {
       }
     }
 
-    //  Credits for this class go to @thompsonate - https://github.com/thompsonate/Scrollable-NSSlider
+    ///  Credits for this class go to @thompsonate - https://github.com/thompsonate/Scrollable-NSSlider
     override func scrollWheel(with event: NSEvent) {
       guard self.isEnabled else { return }
       let range = Float(self.maxValue - self.minValue)

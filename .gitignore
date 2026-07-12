@@ -6,3 +6,6 @@ Carthage
 
 ### Xcode ###
 xcuserdata/
+
+### Local release artifacts ###
+MonitorControl-*-presets.zip

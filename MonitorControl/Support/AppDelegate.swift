@@ -8,7 +8,15 @@ import os.log
 import ServiceManagement
 import Settings
 import SimplyCoreAudio
-import Sparkle
+
+class ForkUpdaterController: NSObject {
+  @objc func checkForUpdates(_: Any?) {
+    let alert = NSAlert()
+    alert.messageText = NSLocalizedString("Updates are disabled in this fork", comment: "Shown when checking for updates")
+    alert.informativeText = NSLocalizedString("Updates are distributed via the project's GitHub Releases.", comment: "Shown when checking for updates")
+    alert.runModal()
+  }
+}
 
 class AppDelegate: NSObject, NSApplicationDelegate {
   let statusItem: NSStatusItem = {
@@ -16,6 +24,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     item.behavior = .removalAllowed
     return item
   }()
+
   var mediaKeyTap = MediaKeyTapManager()
   var keyboardShortcuts = KeyboardShortcutsManager()
   let coreAudio = SimplyCoreAudio()
@@ -28,7 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   var jobRunning = false
   var startupActionWriteCounter: Int = 0
   var audioPlayer: AVAudioPlayer?
-  let updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: UpdaterDelegate(), userDriverDelegate: nil)
+  let updaterController = ForkUpdaterController()
 
   var settingsPaneStyle: Settings.Style {
     if !DEBUG_MACOS10, #available(macOS 11.0, *) {
@@ -52,6 +61,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_: Notification) {
     app = self
+    self.registerDefaultPrefs()
+    prefs.set(false, forKey: PrefKey.SUEnableAutomaticChecks.rawValue)
     self.subscribeEventListeners()
     self.showSafeModeAlertIfNeeded()
     if !prefs.bool(forKey: PrefKey.appAlreadyLaunched.rawValue) {
@@ -65,7 +76,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     CGDisplayRegisterReconfigurationCallback({ _, _, _ in app.displayReconfigured() }, nil)
     self.configure(firstrun: true)
     DisplayManager.shared.createGammaActivityEnforcer()
-    self.updaterController.startUpdater()
   }
 
   @objc func quitClicked(_: AnyObject) {
@@ -79,6 +89,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   @objc func prefsClicked(_: AnyObject) {
     os_log("Settings clicked", type: .info)
     self.settingsWindowController.show()
+    mainPrefsVc?.automaticUpdateCheck.state = .off
+    mainPrefsVc?.automaticUpdateCheck.isEnabled = false
   }
 
   func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows _: Bool) -> Bool {
@@ -111,8 +123,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     if !prefs.bool(forKey: PrefKey.appAlreadyLaunched.rawValue) {
       // Only settings that are not false, 0 or "" by default are set here. Assumes pre-wiped database.
       prefs.set(true, forKey: PrefKey.appAlreadyLaunched.rawValue)
-      prefs.set(true, forKey: PrefKey.SUEnableAutomaticChecks.rawValue)
     }
+  }
+
+  private func registerDefaultPrefs() {
+    prefs.register(defaults: [
+      PrefKey.showContrast.rawValue: true,
+      PrefKey.showColorWarmth.rawValue: true,
+      PrefKey.SUEnableAutomaticChecks.rawValue: false,
+    ])
   }
 
   @objc func displayReconfigured() {
@@ -168,6 +187,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func subscribeEventListeners() {
+    _ = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: prefs, queue: .main) { _ in
+      if prefs.bool(forKey: PrefKey.SUEnableAutomaticChecks.rawValue) {
+        prefs.set(false, forKey: PrefKey.SUEnableAutomaticChecks.rawValue)
+      }
+    }
     NotificationCenter.default.addObserver(self, selector: #selector(self.audioDeviceChanged), name: Notification.Name.defaultOutputDeviceChanged, object: nil) // subscribe Audio output detector (SimplyCoreAudio)
     DistributedNotificationCenter.default.addObserver(self, selector: #selector(self.displayReconfigured), name: NSNotification.Name(rawValue: kColorSyncDisplayDeviceProfilesNotification.takeRetainedValue() as String), object: nil) // ColorSync change
     NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(self.sleepNotification), name: NSWorkspace.screensDidSleepNotification, object: nil) // sleep and wake listeners
@@ -175,7 +199,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(self.sleepNotification), name: NSWorkspace.willSleepNotification, object: nil)
     NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(self.wakeNotification), name: NSWorkspace.didWakeNotification, object: nil)
     _ = DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name(rawValue: NSNotification.Name.accessibilityApi.rawValue), object: nil, queue: nil) { _ in DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.updateMediaKeyTap() } } // listen for accessibility status changes
-    self.statusItemObserver = statusItem.observe(\.isVisible, options: [.old, .new]) { _, _ in self.statusItemVisibilityChanged() }
+    self.statusItemObserver = self.statusItem.observe(\.isVisible, options: [.old, .new]) { _, _ in self.statusItemVisibilityChanged() }
   }
 
   @objc private func sleepNotification() {
@@ -359,16 +383,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     onboardingVc?.window?.center()
     NSApp.activate(ignoringOtherApps: true)
   }
-  
+
   private func statusItemVisibilityChanged() {
     if !self.statusItem.isVisible, self.statusItemVisibilityChangedByUser {
       prefs.set(MenuIcon.hide.rawValue, forKey: PrefKey.menuIcon.rawValue)
     }
   }
-  
+
   func updateStatusItemVisibility(_ visible: Bool) {
-    statusItemVisibilityChangedByUser = false
-    statusItem.isVisible = visible
-    statusItemVisibilityChangedByUser = true
+    self.statusItemVisibilityChangedByUser = false
+    self.statusItem.isVisible = visible
+    self.statusItemVisibilityChangedByUser = true
   }
 }

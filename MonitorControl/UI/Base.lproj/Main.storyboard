@@ -332,6 +332,7 @@
                                     <gridRow bottomPadding="-10" id="ypY-nL-Mey"/>
                                     <gridRow bottomPadding="-6" id="d8s-SW-acK"/>
                                     <gridRow bottomPadding="-13" id="xbz-Tf-py0"/>
+                                    <gridRow bottomPadding="-13" id="wm1-Cw-Rth"/>
                                     <gridRow bottomPadding="-10" id="KPA-bi-7h3"/>
                                     <gridRow bottomPadding="-13" id="CuW-77-ls4"/>
                                     <gridRow bottomPadding="-10" id="MaK-MK-gRQ"/>
@@ -529,6 +530,19 @@
                                             </connections>
                                         </button>
                                     </gridCell>
+                                    <gridCell row="wm1-Cw-Rth" column="FRJ-Rb-RRh" xPlacement="trailing" id="wm2-Cw-Rth"/>
+                                    <gridCell row="wm1-Cw-Rth" column="V6M-Jv-Agj" xPlacement="leading" id="wm3-Cw-Rth">
+                                        <button key="contentView" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="wm4-Cw-Rth">
+                                            <rect key="frame" x="218" y="208" width="232" height="18"/>
+                                            <buttonCell key="cell" type="check" title="Show color warmth slider in menu" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="wm5-Cw-Rth">
+                                                <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                                                <font key="font" metaFont="system"/>
+                                            </buttonCell>
+                                            <connections>
+                                                <action selector="showColorWarmthSliderClicked:" target="tLm-u5-aZ2" id="wm6-Cw-Rth"/>
+                                            </connections>
+                                        </button>
+                                    </gridCell>
                                     <gridCell row="KPA-bi-7h3" column="FRJ-Rb-RRh" id="jqf-Qp-ilZ"/>
                                     <gridCell row="KPA-bi-7h3" column="V6M-Jv-Agj" id="vAI-Aq-T6c">
                                         <textField key="contentView" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Od3-K9-Ltb">
@@ -696,6 +710,7 @@
                         <outlet property="showAppleFromMenu" destination="jnZ-Nf-GaQ" id="d8s-zB-efU"/>
                         <outlet property="showBrightnessSlider" destination="NaD-fA-S7k" id="QbY-GZ-Z2Z"/>
                         <outlet property="showContrastSlider" destination="uYF-Oe-H5a" id="II5-CP-AzB"/>
+                        <outlet property="showColorWarmthSlider" destination="wm4-Cw-Rth" id="wm7-Cw-Rth"/>
                         <outlet property="showTickMarks" destination="1Il-jd-K66" id="VSX-EG-XRh"/>
                         <outlet property="showVolumeSlider" destination="dbn-VC-UQW" id="sHO-Yd-b3H"/>
                     </connections>

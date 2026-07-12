@@ -4,16 +4,19 @@
 <h3>MonitorControl</h3>
 <p>Controls your external display brightness and volume and shows native OSD.
 Use menubar extra sliders or the keyboard, including native Apple keys!</p>
-<a href="https://github.com/MonitorControl/MonitorControl/releases"><img src=".github/macos_badge_noborder.png" width="175" alt="Download for macOS"/></a>
+<a href="https://github.com/uycung/MonitorControl/releases"><img src=".github/macos_badge_noborder.png" width="175" alt="Download for macOS"/></a>
 </div>
 
 <br/><br/>
 
+> [!NOTE]
+> This repository is a personal fork of the original [MonitorControl project](https://github.com/MonitorControl/MonitorControl), focused on per-display presets and related menu controls. The upstream project remains the foundation of this work, and this fork continues to be distributed under the MIT license in [License.txt](License.txt).
+
 <div align="center">
-<a href="https://github.com/MonitorControl/MonitorControl/releases"><img src="https://img.shields.io/github/downloads/MonitorControl/MonitorControl/total.svg?style=flat" alt="downloads"/></a>
-<a href="https://github.com/MonitorControl/MonitorControl/releases"><img src="https://img.shields.io/github/release-pre/MonitorControl/MonitorControl.svg?style=flat" alt="latest version"/></a>
-<a href="https://github.com/MonitorControl/MonitorControl/blob/master/License.txt"><img src="https://img.shields.io/github/license/MonitorControl/MonitorControl.svg?style=flat" alt="license"/></a>
-<a href="https://github.com/MonitorControl/MonitorControl"><img src="https://img.shields.io/badge/platform-macOS-blue.svg?style=flat" alt="platform"/></a>
+<a href="https://github.com/uycung/MonitorControl/releases"><img src="https://img.shields.io/github/downloads/uycung/MonitorControl/total.svg?style=flat" alt="downloads"/></a>
+<a href="https://github.com/uycung/MonitorControl/releases"><img src="https://img.shields.io/github/release-pre/uycung/MonitorControl.svg?style=flat" alt="latest version"/></a>
+<a href="https://github.com/uycung/MonitorControl/blob/main/License.txt"><img src="https://img.shields.io/github/license/uycung/MonitorControl.svg?style=flat" alt="license"/></a>
+<a href="https://github.com/uycung/MonitorControl"><img src="https://img.shields.io/badge/platform-macOS-blue.svg?style=flat" alt="platform"/></a>
 
 <br/>
 <br/>
@@ -24,15 +27,27 @@ Use menubar extra sliders or the keyboard, including native Apple keys!</p>
 
 <hr>
 
-> [!WARNING]
-> MonitorControl v4.2.0 [may crash](https://github.com/MonitorControl/MonitorControl/issues/1663) on certain configurations running macOS 15 Sequoia or Tahoe. Additionally, this version will not automatically update to the [latest app version](https://github.com/MonitorControl/MonitorControl/releases). To resolve the issue and ensure future updates, please upgrade manually.
+## What's different in this fork
 
-## Download
+- Per-display presets with built-in Reading Mode, Night Mode, Movie/Vivid and Standard profiles. Presets can be applied directly from the menu, renamed, updated or deleted, and custom profiles can be captured with **Save Current as…**. The active preset is marked with a checkmark.
+- A Color Warmth slider backed by MCCS VCP `0x14`. Not every monitor supports hardware color-preset switching, and changes can have higher or more variable latency on displays controlled through the macOS AVService bridge.
+- Contrast and Color Warmth sliders are enabled by default for displays that support them. Users can still turn either slider off in Settings.
+- Sparkle automatic updates are disabled. Builds from this fork are distributed manually through [this fork's GitHub Releases](https://github.com/uycung/MonitorControl/releases), preventing an update from replacing fork-specific features with an upstream build.
 
-Go to [Releases](https://github.com/MonitorControl/MonitorControl/releases) and download the latest `.dmg`, or you can install via Homebrew:
-```shell
-brew install --cask monitorcontrol
-```
+## Installing this build
+
+This fork's downloadable app is not signed with a paid Apple Developer ID. On first launch, macOS may report that it cannot verify the developer.
+
+1. Copy `MonitorControl.app` to `/Applications`.
+2. Right-click the app, choose **Open**, then confirm **Open** in the dialog.
+3. If macOS blocks the first attempt, open **System Settings → Privacy & Security**, scroll to the security message for MonitorControl, and choose **Open Anyway**.
+4. As a fallback, remove the downloaded quarantine attribute in Terminal:
+
+   ```shell
+   xattr -cr /Applications/MonitorControl.app
+   ```
+
+On first launch, MonitorControl may request Accessibility permission for keyboard shortcuts and permission needed for DDC/display control. These prompts are expected and normally only need to be handled once.
 
 ## Major features
 
@@ -60,16 +75,14 @@ For additional features, more advanced brightness control with XDR/HDR brightnes
 <img src=".github/pref_4.png" width="392" alt="Screenshot"/>
 </div>
 
-## How to install and use the app
+## How to use the app
 
-1. [Download the app](https://github.com/MonitorControl/MonitorControl/releases)
-2. Copy the MonitorControl app file from the .dmg file to your Applications folder
-3. Click on the `MonitorControl` app
-4. Add the app to `Accessibility` under `System Settings` » `Privacy & Security` as prompted (this is required only if you wish to use the native Apple keyboard brightness and media keys - if this is not the case, you can safely skip this step).
-5. Use your keyboard or the sliders in the app menu (a brightness symbol in the macOS menubar as shown on the screenshot above) to control your displays.
-6. Open `Settings…` for customization options (enable `Show advanced settings` for even more options).
-7. You can set up custom keyboard shortcuts under the `Keyboard` in Settings (the app uses Apple media keys by default).
-8. If you have any questions, go to [Discussions](https://github.com/MonitorControl/MonitorControl/discussions)!
+1. Follow [Installing this build](#installing-this-build), then launch `MonitorControl.app` from `/Applications`.
+2. Add the app to `Accessibility` under `System Settings` » `Privacy & Security` as prompted (this is required only if you wish to use the native Apple keyboard brightness and media keys - if this is not the case, you can safely skip this step).
+3. Use your keyboard or the sliders in the app menu (a brightness symbol in the macOS menubar as shown on the screenshot above) to control your displays.
+4. Open `Settings…` for customization options (enable `Show advanced settings` for even more options).
+5. You can set up custom keyboard shortcuts under the `Keyboard` in Settings (the app uses Apple media keys by default).
+6. If you have any questions about this fork, go to [Discussions](https://github.com/uycung/MonitorControl/discussions).
 
 ### macOS compatibility
 
@@ -116,7 +129,7 @@ Notable exceptions for hardware control compatibility:
 - Clone the project via this Terminal command:
 
 ```sh
-git clone https://github.com/MonitorControl/MonitorControl.git
+git clone https://github.com/uycung/MonitorControl.git
 ```
 
 - If you want to clone one of the branches, add `--single-branch --branch [branchname]` after the `clone` option.
