@@ -26,6 +26,7 @@ class MenuslidersPrefsViewController: NSViewController, SettingsPane {
   @IBOutlet var showVolumeSlider: NSButton!
   @IBOutlet var showContrastSlider: NSButton!
   @IBOutlet var showColorWarmthSlider: NSButton!
+  @IBOutlet var showNightShiftSlider: NSButton!
 
   @IBOutlet var multiSliders: NSPopUpButton!
 
@@ -97,6 +98,7 @@ class MenuslidersPrefsViewController: NSViewController, SettingsPane {
     }
     self.showContrastSlider.state = prefs.bool(forKey: PrefKey.showContrast.rawValue) ? .on : .off
     self.showColorWarmthSlider.state = prefs.bool(forKey: PrefKey.showColorWarmth.rawValue) ? .on : .off
+    self.showNightShiftSlider.state = prefs.bool(forKey: PrefKey.showNightShift.rawValue) ? .on : .off
 
     self.multiSliders.selectItem(withTag: prefs.integer(forKey: PrefKey.multiSliders.rawValue))
 
@@ -178,6 +180,18 @@ class MenuslidersPrefsViewController: NSViewController, SettingsPane {
       prefs.set(true, forKey: PrefKey.showColorWarmth.rawValue)
     case .off:
       prefs.set(false, forKey: PrefKey.showColorWarmth.rawValue)
+    default: break
+    }
+    app.updateMenusAndKeys()
+    self.updateGridLayout()
+  }
+
+  @IBAction func showNightShiftSliderClicked(_ sender: NSButton) {
+    switch sender.state {
+    case .on:
+      prefs.set(true, forKey: PrefKey.showNightShift.rawValue)
+    case .off:
+      prefs.set(false, forKey: PrefKey.showNightShift.rawValue)
     default: break
     }
     app.updateMenusAndKeys()

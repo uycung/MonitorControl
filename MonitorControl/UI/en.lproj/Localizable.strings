@@ -73,6 +73,9 @@
 /* Shown in record shortcut box */
 "Mute" = "Mute";
 
+/* Tooltip on the Night Shift slider's info icon */
+"Night Shift must be turned on in System Settings → Displays → Night Shift (or via Control Center) for this slider to have a visible, lasting effect. This slider only adjusts warmth strength — it does not turn Night Shift on or change its schedule." = "Night Shift must be turned on in System Settings → Displays → Night Shift (or via Control Center) for this slider to have a visible, lasting effect. This slider only adjusts warmth strength — it does not turn Night Shift on or change its schedule.";
+
 /* Shown in the alert dialog */
 "No" = "No";
 

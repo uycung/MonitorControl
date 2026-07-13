@@ -15,6 +15,8 @@ class MenuHandler: NSMenu, NSMenuDelegate {
 
   var combinedSliderHandler: [Command: SliderHandler] = [:]
 
+  var nightShiftSliderHandler: NightShiftSliderHandler?
+
   var lastMenuRelevantDisplayId: CGDirectDisplayID = 0
 
   func clearMenu() {
@@ -26,10 +28,12 @@ class MenuHandler: NSMenu, NSMenuDelegate {
       self.removeItem(item)
     }
     self.combinedSliderHandler.removeAll()
+    self.nightShiftSliderHandler = nil
   }
 
   func menuWillOpen(_: NSMenu) {
     self.updateMenuRelevantDisplay()
+    self.nightShiftSliderHandler?.refreshStrength()
     self.refreshPresetCheckmarks(in: self)
     app.keyboardShortcuts.disengage()
   }
@@ -81,7 +85,26 @@ class MenuHandler: NSMenu, NSMenuDelegate {
         self.addCombinedDisplayMenuBlock()
       }
     }
+    self.addNightShiftMenuItemIfEligible()
     self.addDefaultMenuOptions()
+  }
+
+  static func shouldShowNightShift(preferenceEnabled: Bool, nightShiftAvailable: Bool) -> Bool {
+    preferenceEnabled && nightShiftAvailable
+  }
+
+  private func addNightShiftMenuItemIfEligible() {
+    guard Self.shouldShowNightShift(preferenceEnabled: prefs.bool(forKey: PrefKey.showNightShift.rawValue), nightShiftAvailable: NightShiftController.shared.available) else {
+      return
+    }
+    let sliderHandler = NightShiftSliderHandler()
+    self.nightShiftSliderHandler = sliderHandler
+    let item = NSMenuItem()
+    item.view = sliderHandler.view
+    self.insertItem(item, at: 0)
+    if prefs.integer(forKey: PrefKey.menuIcon.rawValue) == MenuIcon.sliderOnly.rawValue {
+      app.updateStatusItemVisibility(true)
+    }
   }
 
   func addSliderItem(monitorSubMenu: NSMenu, sliderHandler: SliderHandler) {

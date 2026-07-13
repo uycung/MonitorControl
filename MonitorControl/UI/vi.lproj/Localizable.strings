@@ -1,0 +1,2 @@
+/* Tooltip on the Night Shift slider's info icon */
+"Night Shift must be turned on in System Settings → Displays → Night Shift (or via Control Center) for this slider to have a visible, lasting effect. This slider only adjusts warmth strength — it does not turn Night Shift on or change its schedule." = "Night Shift phải được bật trong Cài đặt hệ thống → Màn hình → Night Shift (hoặc qua Control Center) thì thanh trượt này mới có tác dụng hiển thị rõ và lâu dài. Thanh trượt này chỉ điều chỉnh cường độ ấm màu — không bật Night Shift hay thay đổi lịch biểu của nó.";

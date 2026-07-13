@@ -6,6 +6,10 @@ Carthage
 
 ### Xcode ###
 xcuserdata/
+build/
+DerivedData/
+.build/
 
 ### Local release artifacts ###
 MonitorControl-*-presets.zip
+*.zip

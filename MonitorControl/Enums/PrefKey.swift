@@ -39,6 +39,9 @@ enum PrefKey: String {
   /// Show color warmth slider
   case showColorWarmth
 
+  /// Show Night Shift slider
+  case showNightShift
+
   /// Show volume sliders
   case hideVolume
 

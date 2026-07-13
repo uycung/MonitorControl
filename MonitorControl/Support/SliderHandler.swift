@@ -58,7 +58,10 @@ class SliderHandler {
 
     override func stopTracking(last lastPoint: NSPoint, current stopPoint: NSPoint, in controlView: NSView, mouseIsUp flag: Bool) {
       self.isTracking = false
-      return super.stopTracking(last: lastPoint, current: stopPoint, in: controlView, mouseIsUp: flag)
+      super.stopTracking(last: lastPoint, current: stopPoint, in: controlView, mouseIsUp: flag)
+      // A real drag never reaches MCSlider.mouseUp: NSControl's tracking loop consumes the
+      // mouse-up event, so this cell callback is the only guaranteed drag-end hook.
+      (controlView as? MCSlider)?.trackingEnded?()
     }
 
     override func drawKnob(_ knobRect: NSRect) {
@@ -140,6 +143,10 @@ class SliderHandler {
 
   class MCSlider: NSSlider {
     var trackingEnded: (() -> Void)?
+
+    var isTracking: Bool {
+      (self.cell as? MCSliderCell)?.isTracking ?? false
+    }
 
     required init?(coder: NSCoder) {
       super.init(coder: coder)
@@ -311,10 +318,7 @@ class SliderHandler {
     }
   }
 
-  @objc func valueChanged(slider: MCSlider) {
-    guard app.sleepID == 0, app.reconfigureID == 0 else {
-      return
-    }
+  func preparedValue(for slider: MCSlider) -> Float {
     var value = slider.floatValue
     self.updateIcon()
     if prefs.bool(forKey: PrefKey.enableSliderSnap.rawValue) {
@@ -330,6 +334,14 @@ class SliderHandler {
     if self.percentageBox == self.percentageBox {
       self.percentageBox?.stringValue = "" + String(Int(value * 100)) + "%"
     }
+    return value
+  }
+
+  @objc func valueChanged(slider: MCSlider) {
+    guard app.sleepID == 0, app.reconfigureID == 0 else {
+      return
+    }
+    let value = self.preparedValue(for: slider)
     for display in self.displays {
       slider.setHighlightItem(display.identifier, value: value)
       if self.command == .brightness, let appleDisplay = display as? AppleDisplay {

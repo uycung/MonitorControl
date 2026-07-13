@@ -6,6 +6,12 @@
 #import <IOKit/i2c/IOI2CInterface.h>
 #import <CoreGraphics/CoreGraphics.h>
 
+@interface CBBlueLightClient : NSObject
++ (BOOL)supportsBlueLightReduction;
+- (BOOL)setStrength:(float)arg1 commit:(BOOL)arg2;
+- (BOOL)getStrength:(float *)arg1;
+@end
+
 typedef CFTypeRef IOAVService;
 extern IOAVService IOAVServiceCreate(CFAllocatorRef allocator);
 extern IOAVService IOAVServiceCreateWithService(CFAllocatorRef allocator, io_service_t service);
@@ -53,4 +59,3 @@ bool CGSIsHDRSupported(CGDirectDisplayID display) __attribute__((weak_import));
 @property(readonly) id <OSDUIHelperProtocol> remoteObjectProxy; // @dynamic remoteObjectProxy;
 
 @end
-

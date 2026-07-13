@@ -1,0 +1,5 @@
+/* Class = "NSButtonCell"; title = "Show Night Shift slider in menu"; ObjectID = "nSh-ift-Cell"; */
+"nSh-ift-Cell.title" = "Hiển thị thanh trượt Night Shift trong menu";
+
+/* Class = "NSTextFieldCell"; title = "System-wide. Adjusts strength only; Night Shift activation and schedule remain managed in System Settings."; ObjectID = "nSh-ift-TextCell"; */
+"nSh-ift-TextCell.title" = "Áp dụng toàn hệ thống. Chỉ điều chỉnh cường độ; việc bật Night Shift và lịch biểu vẫn do Cài đặt hệ thống quản lý.";

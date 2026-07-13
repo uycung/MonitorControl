@@ -114,7 +114,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = NSLocalizedString("Settings for an incompatible previous app version detected. Default settings are reloaded.", comment: "Shown in the alert dialog")
         alert.runModal()
       }
-      prefs.removePersistentDomain(forName: bundleID)
+      self.resetPersistentPrefs(for: bundleID)
     }
     prefs.set(currentBuildNumber, forKey: PrefKey.buildNumber.rawValue)
   }
@@ -130,8 +130,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     prefs.register(defaults: [
       PrefKey.showContrast.rawValue: true,
       PrefKey.showColorWarmth.rawValue: true,
+      PrefKey.showNightShift.rawValue: true,
+      PrefKey.menuIcon.rawValue: MenuIcon.show.rawValue,
       PrefKey.SUEnableAutomaticChecks.rawValue: false,
     ])
+  }
+
+  private func resetPersistentPrefs(for bundleID: String) {
+    prefs.removePersistentDomain(forName: bundleID)
+    self.registerDefaultPrefs()
+    self.updateStatusItemVisibility(true)
   }
 
   @objc func displayReconfigured() {
@@ -299,9 +307,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       DisplayManager.shared.resetSwBrightnessForAllDisplays(async: false)
     }
     if let bundleID = Bundle.main.bundleIdentifier {
-      prefs.removePersistentDomain(forName: bundleID)
+      self.resetPersistentPrefs(for: bundleID)
     }
-    app.updateStatusItemVisibility(true)
     self.setDefaultPrefs()
     self.checkPermissions()
     self.updateMediaKeyTap()
@@ -366,6 +373,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     menu.delegate = menu
     self.statusItem.button?.image = NSImage(named: "status")
     self.statusItem.menu = menu
+    if prefs.integer(forKey: PrefKey.menuIcon.rawValue) == MenuIcon.show.rawValue {
+      self.updateStatusItemVisibility(true)
+    }
   }
 
   private func showSafeModeAlertIfNeeded() {
