@@ -4,6 +4,14 @@ import AppKit
 import os.log
 
 class MenuHandler: NSMenu, NSMenuDelegate {
+  enum DisplayKind {
+    case builtIn, other
+  }
+
+  enum NightShiftPlacement: Equatable {
+    case topLevel, builtInDisplayBlock
+  }
+
   class PresetMenuReference: NSObject {
     let prefsId: String
     let presetId: UUID?
@@ -71,6 +79,9 @@ class MenuHandler: NSMenu, NSMenuDelegate {
     let relevant = prefs.integer(forKey: PrefKey.multiSliders.rawValue) == MultiSliders.relevant.rawValue
     let combine = prefs.integer(forKey: PrefKey.multiSliders.rawValue) == MultiSliders.combine.rawValue
     let numOfDisplays = displays.filter { !$0.isDummy }.count
+    let nightShiftPlacement = Self.nightShiftPlacement(boxesRendered: self.shouldRenderDisplayBoxes(numOfDisplays: numOfDisplays))
+    let nightShiftSliderHandler = self.makeNightShiftSliderHandlerIfEligible()
+    let builtInDisplayID = DisplayManager.shared.getBuiltInDisplay()?.identifier
     if numOfDisplays != 0 {
       let asSubMenu: Bool = (displays.count > 3 && !relevant && !combine && app.macOS10()) ? true : false
       var iterator = 0
@@ -79,32 +90,64 @@ class MenuHandler: NSMenu, NSMenuDelegate {
         if !relevant, !combine, iterator != 1, app.macOS10() {
           self.insertItem(NSMenuItem.separator(), at: 0)
         }
-        self.updateDisplayMenu(display: display, asSubMenu: asSubMenu, numOfDisplays: numOfDisplays)
+        let displayNightShiftSliderHandler: NightShiftSliderHandler?
+        if nightShiftPlacement == .builtInDisplayBlock, let builtInDisplayID = builtInDisplayID, display.identifier == builtInDisplayID {
+          displayNightShiftSliderHandler = nightShiftSliderHandler
+        } else {
+          displayNightShiftSliderHandler = nil
+        }
+        self.updateDisplayMenu(display: display, asSubMenu: asSubMenu, numOfDisplays: numOfDisplays, nightShiftSliderHandler: displayNightShiftSliderHandler)
       }
       if combine {
         self.addCombinedDisplayMenuBlock()
       }
     }
-    self.addNightShiftMenuItemIfEligible()
+    self.addTopLevelNightShiftMenuItemIfNeeded(placement: nightShiftPlacement, sliderHandler: nightShiftSliderHandler)
     self.addDefaultMenuOptions()
   }
 
-  static func shouldShowNightShift(preferenceEnabled: Bool, nightShiftAvailable: Bool) -> Bool {
-    preferenceEnabled && nightShiftAvailable
+  static func hasBuiltInDisplay(_ displayKinds: [DisplayKind]) -> Bool {
+    displayKinds.contains(.builtIn)
   }
 
-  private func addNightShiftMenuItemIfEligible() {
-    guard Self.shouldShowNightShift(preferenceEnabled: prefs.bool(forKey: PrefKey.showNightShift.rawValue), nightShiftAvailable: NightShiftController.shared.available) else {
-      return
+  static func shouldShowNightShift(preferenceEnabled: Bool, nightShiftAvailable: Bool, builtInDisplayPresent: Bool) -> Bool {
+    preferenceEnabled && nightShiftAvailable && builtInDisplayPresent
+  }
+
+  static func nightShiftPlacement(boxesRendered: Bool) -> NightShiftPlacement {
+    boxesRendered ? .builtInDisplayBlock : .topLevel
+  }
+
+  private func makeNightShiftSliderHandlerIfEligible() -> NightShiftSliderHandler? {
+    let builtInDisplayID = DisplayManager.shared.getBuiltInDisplay()?.identifier
+    let displayKinds = DisplayManager.shared.displays.map { display -> DisplayKind in
+      if let builtInDisplayID = builtInDisplayID, display.identifier == builtInDisplayID {
+        return .builtIn
+      }
+      return .other
+    }
+    guard Self.shouldShowNightShift(
+      preferenceEnabled: prefs.bool(forKey: PrefKey.showNightShift.rawValue),
+      nightShiftAvailable: NightShiftController.shared.available,
+      builtInDisplayPresent: Self.hasBuiltInDisplay(displayKinds)
+    ) else {
+      return nil
     }
     let sliderHandler = NightShiftSliderHandler()
     self.nightShiftSliderHandler = sliderHandler
-    let item = NSMenuItem()
-    item.view = sliderHandler.view
-    self.insertItem(item, at: 0)
     if prefs.integer(forKey: PrefKey.menuIcon.rawValue) == MenuIcon.sliderOnly.rawValue {
       app.updateStatusItemVisibility(true)
     }
+    return sliderHandler
+  }
+
+  private func addTopLevelNightShiftMenuItemIfNeeded(placement: NightShiftPlacement, sliderHandler: NightShiftSliderHandler?) {
+    guard placement == .topLevel, let sliderHandler = sliderHandler else {
+      return
+    }
+    let item = NSMenuItem()
+    item.view = sliderHandler.view
+    self.insertItem(item, at: 0)
   }
 
   func addSliderItem(monitorSubMenu: NSMenu, sliderHandler: SliderHandler) {
@@ -135,7 +178,7 @@ class MenuHandler: NSMenu, NSMenuDelegate {
   }
 
   func addDisplayMenuBlock(addedSliderHandlers: [SliderHandler], blockName: String, monitorSubMenu: NSMenu, numOfDisplays: Int, asSubMenu: Bool) {
-    if numOfDisplays > 1, prefs.integer(forKey: PrefKey.multiSliders.rawValue) != MultiSliders.relevant.rawValue, !DEBUG_MACOS10, #available(macOS 11.0, *) {
+    if self.shouldRenderDisplayBoxes(numOfDisplays: numOfDisplays) {
       class BlockView: NSView {
         override func draw(_: NSRect) {
           let radius = prefs.bool(forKey: PrefKey.showTickMarks.rawValue) ? CGFloat(4) : CGFloat(11)
@@ -194,6 +237,12 @@ class MenuHandler: NSMenu, NSMenuDelegate {
       }
     }
     self.appendMenuHeader(friendlyName: blockName, monitorSubMenu: monitorSubMenu, asSubMenu: asSubMenu, numOfDisplays: numOfDisplays)
+  }
+
+  private func shouldRenderDisplayBoxes(numOfDisplays: Int) -> Bool {
+    guard !DEBUG_MACOS10, #available(macOS 11.0, *) else { return false }
+    let multiSliders = prefs.integer(forKey: PrefKey.multiSliders.rawValue)
+    return numOfDisplays > 1 && multiSliders != MultiSliders.relevant.rawValue && multiSliders != MultiSliders.combine.rawValue
   }
 
   func addCombinedDisplayMenuBlock() {
@@ -362,7 +411,7 @@ class MenuHandler: NSMenu, NSMenuDelegate {
     self.updateMenus()
   }
 
-  func updateDisplayMenu(display: Display, asSubMenu: Bool, numOfDisplays: Int) {
+  func updateDisplayMenu(display: Display, asSubMenu: Bool, numOfDisplays: Int, nightShiftSliderHandler: NightShiftSliderHandler? = nil) {
     os_log("Addig menu items for display %{public}@", type: .info, "\(display.identifier)")
     let monitorSubMenu: NSMenu = asSubMenu ? NSMenu() : self
     var addedSliderHandlers: [SliderHandler] = []
@@ -390,6 +439,9 @@ class MenuHandler: NSMenu, NSMenuDelegate {
     if !display.readPrefAsBool(key: .unavailableDDC, for: .brightness), !prefs.bool(forKey: PrefKey.hideBrightness.rawValue) {
       let title = NSLocalizedString("Brightness", comment: "Shown in menu")
       addedSliderHandlers.append(self.setupMenuSliderHandler(command: .brightness, display: display, title: title))
+    }
+    if let nightShiftSliderHandler = nightShiftSliderHandler {
+      addedSliderHandlers.append(nightShiftSliderHandler)
     }
     if let otherDisplay = display as? OtherDisplay, !otherDisplay.isSw(), prefs.integer(forKey: PrefKey.multiSliders.rawValue) != MultiSliders.combine.rawValue {
       self.insertPresetMenuItems(for: otherDisplay, into: monitorSubMenu, at: 0)

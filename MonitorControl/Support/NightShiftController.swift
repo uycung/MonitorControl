@@ -7,6 +7,7 @@ import os.log
 protocol NightShiftControlling: AnyObject {
   var available: Bool { get }
   func refreshStrength() -> Float?
+  func isNightShiftEnabled() -> Bool?
   @discardableResult func setStrength(_ strength: Float, commit: Bool) -> Bool
 }
 
@@ -15,7 +16,28 @@ protocol NightShiftRuntime {
   var hasRequiredSelectors: Bool { get }
   func supportsBlueLightReduction() -> Bool
   func getStrength() -> Float?
+  func isNightShiftEnabled() -> Bool?
   func setStrength(_ strength: Float, commit: Bool) -> Bool
+}
+
+private struct BlueLightTime {
+  var hour: Int32 = 0
+  var minute: Int32 = 0
+}
+
+private struct BlueLightSchedule {
+  var fromTime = BlueLightTime()
+  var toTime = BlueLightTime()
+}
+
+private struct BlueLightStatus {
+  var active = false
+  var enabled = false
+  var sunSchedulePermitted = false
+  var mode: Int32 = 0
+  var schedule = BlueLightSchedule()
+  var disableFlags: UInt64 = 0
+  var unknown = false
 }
 
 private final class CoreBrightnessNightShiftRuntime: NightShiftRuntime {
@@ -59,6 +81,23 @@ private final class CoreBrightnessNightShiftRuntime: NightShiftRuntime {
     return client.getStrength(&strength) ? strength : nil
   }
 
+  func isNightShiftEnabled() -> Bool? {
+    guard let client = self.client else {
+      return nil
+    }
+    let selector = NSSelectorFromString("getBlueLightStatus:")
+    guard let method = class_getInstanceMethod(type(of: client), selector) else {
+      return nil
+    }
+    typealias GetBlueLightStatus = @convention(c) (UnsafeRawPointer, Selector, UnsafeMutableRawPointer) -> Bool
+    let getBlueLightStatus = unsafeBitCast(method_getImplementation(method), to: GetBlueLightStatus.self)
+    var status = BlueLightStatus()
+    let didReadStatus = withUnsafeMutablePointer(to: &status) { statusPointer in
+      getBlueLightStatus(Unmanaged.passUnretained(client).toOpaque(), selector, UnsafeMutableRawPointer(statusPointer))
+    }
+    return didReadStatus ? status.enabled : nil
+  }
+
   func setStrength(_ strength: Float, commit: Bool) -> Bool {
     guard let client = self.client else {
       return false
@@ -98,6 +137,13 @@ final class NightShiftController: NightShiftControlling {
       return nil
     }
     return max(0, min(1, strength))
+  }
+
+  func isNightShiftEnabled() -> Bool? {
+    guard self.available else {
+      return nil
+    }
+    return self.runtime.isNightShiftEnabled()
   }
 
   @discardableResult func setStrength(_ strength: Float, commit: Bool) -> Bool {

@@ -1,17 +1,23 @@
-# MonitorControl Presets Fork 4.3.501
+# MonitorControl 4.3.502 — Night Shift Integration
 
-This personal fork of MonitorControl adds per-display presets and color-preset controls while retaining the upstream project's core brightness, contrast, volume and keyboard-control features.
+This release adds a native Night Shift strength control to the MonitorControl menu while preserving the fork's per-display presets and Color Warmth controls.
 
-## Highlights
+## What's new
+
+- Adjust the system Night Shift warmth strength directly from the menu bar.
+- The Night Shift row appears only while a built-in display is active and updates automatically when displays or the MacBook lid state change.
+- With multiple displays, Night Shift is placed first inside the built-in display's control box; with only the built-in display, it remains a top-level control.
+- The info icon now shows its explanation immediately on hover without the standard AppKit tooltip delay.
+- Dragging the slider while Night Shift is disabled shows a non-blocking three-second reminder to enable it in System Settings.
+- Slider dragging and commit-on-release behavior remain unchanged.
+
+## Also included
 
 - Per-display presets with built-in Reading Mode, Night Mode, Movie/Vivid and Standard profiles.
-- Create custom profiles with **Save Current as…**, and update, rename or delete existing presets.
-- The currently active preset is marked with a checkmark in the menu.
-- Color Warmth slider using MCCS VCP `0x14`. Hardware support varies by monitor, and AVService-bridged displays may respond more slowly or inconsistently than brightness and contrast controls.
-- Contrast and Color Warmth sliders are enabled by default on supported displays.
-- Reading Mode is tuned to 70% brightness and 65% contrast.
-- Sparkle automatic updates are disabled; fork updates are distributed manually through this repository's GitHub Releases.
+- Custom preset creation, updating, renaming and deletion.
+- Color Warmth control for supported external displays using MCCS VCP `0x14`.
+- Sparkle automatic updates remain disabled; fork releases are distributed manually through GitHub Releases.
 
 ## How to install
 
-Download and unzip the app, copy `MonitorControl.app` to `/Applications`, then follow the unsigned-build instructions in the README's [Installing this build](README.md#installing-this-build) section. A one-time Gatekeeper override and Accessibility permission may be required.
+Download `MonitorControl-4.3.502-presets.zip`, unzip it, copy `MonitorControl.app` to `/Applications`, then follow the unsigned-build instructions in the README's [Installing this build](README.md#installing-this-build) section. A one-time Gatekeeper override and Accessibility permission may be required.
